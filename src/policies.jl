@@ -1,121 +1,83 @@
+export SoftmaxPolicy, EpsilonGreedyPolicy, ForcedPolicy
+import StatsBase:sample
+
+abstract type AbstractPolicy end
+function sample end
+function getprob end
+
+sample(p::AbstractPolicy, values, actions) = actions[sample(p, values)]
+
+##############################
+## SoftmaxPolicy
+##############################
+
 """
-    mutable struct SoftmaxPolicy <: AbstractSoftmaxPolicy
-        β::Float64
-
-Choose action ``a`` with probability
-
-```math
-\\frac{e^{\\beta x_a}}{\\sum_{a'} e^{\\beta x_{a'}}}
-```
-
-where ``x`` is a vector of values for each action. In states with actions that
-were never chosen before, a uniform random novel action is returned.
-
-    SoftmaxPolicy(; β = 1.)
-
 Returns a SoftmaxPolicy with default β = 1.
+
+    mutable struct SoftmaxPolicy <: AbstractPolicy
+        β::Float64
+    end
 """
-mutable struct SoftmaxPolicy{T} 
+struct SoftmaxPolicy <: AbstractPolicy
     β::Float64
-    π::T
+    SoftmaxPolicy() = new(1.0)
 end
-SoftmaxPolicy(π; β = 1.) = SoftmaxPolicy(float(β), π)
-export SoftmaxPolicy
-function (p::SoftmaxPolicy)(s)
-    values = p.π(s)
-    if maximum(values) == Inf64
-        rand(findall(v -> v == Inf64, values))
-    else
-        samplesoftmaxaction(p, values)
-    end
-end
-
-# Samples from Categorical(exp(input)/sum(exp(input)))
-function samplesoftmaxaction(policy::SoftmaxPolicy, values)
-    if policy.β == Inf
-        samplegreedyaction(policy, values)
-    else
-        StatsBase.wsample(exp.(policy.β .* values))
-    end
-end
-
-function getactionprobabilities(policy::SoftmaxPolicy, state)
-    values = policy.π(state)
-    if maximum(values) == Inf || policy.β == Inf
-        p = zeros(length(values))
-        vmax = maximum(values)
-        a = findall(v -> v == vmax, values)
-        for i in a
-            p[i] = 1/length(a)
-        end
-        return p
-    else
-        expvals = exp.(policy.β .* (values .- maximum(values)))
-        return expvals/sum(expvals)
-    end
-end
-
 
 """
-    mutable struct EpsilonGreedyPolicy{kind}
+Return a softmax weighted random sample's index.
+"""
+function sample(p::SoftmaxPolicy, values)
+    if p.β == Inf
+        rand(findallmax(vs).max_idxs)
+    else
+        max_idxs, max_val = findallmax(values)
+        if max_val == typemax(eltype(values))
+            rand(max_idxs)
+        else
+            wsample(exp.(p.β .* values))
+        end
+    end
+end
+
+function getprob(policy::SoftmaxPolicy, values)
+    max_idxs, max_val = findallmax(values)
+    if policy.β == Inf || max_val == typemax(eltype(values))
+        p = zero(values)
+        for i in max_idxs
+            p[i] = 1/length(max_idxs)
+        end
+        p
+    else
+        expvalues = exp.(policy.β .* (values .- maximum(values)))
+        expvalues/sum(expvalues)
+    end
+end
+
+
+##############################
+## EpsilonGreedyPolicy
+##############################
+"""
+    struct EpsilonGreedyPolicy
         ϵ::Float64
 
 Chooses the action with the highest value with probability `1 - ϵ` and selects 
 an action uniformly random with probability `ϵ`.
 """
-mutable struct EpsilonGreedyPolicy{kind, Ta, Tf}
+struct EpsilonGreedyPolicy <: AbstractPolicy
     ϵ::Float64
-    actionspace::Ta
-    Q::Tf
-end
-function EpsilonGreedyPolicy(ϵ, actionspace::Ta, Q::Tf; 
-                             kind = :veryoptimistic) where {Ta, Tf}
-    EpsilonGreedyPolicy{kind, Ta, Tf}(ϵ, actionspace, Q)
-end
-export EpsilonGreedyPolicy
-(p::EpsilonGreedyPolicy)(s) = rand() < p.ϵ ? rand(p.actionspace) : 
-                                             samplegreedyaction(p, p.Q(s))
-
-
-import Base.maximum, Base.isequal
-maximum(::EpsilonGreedyPolicy, v) = maximumbelowInf(v)
-maximum(::SoftmaxPolicy, v) = maximum(v)
-isequal(::EpsilonGreedyPolicy{:optimistic, Ta, Tf}, v1, v2) where {Ta, Tf} = v1 >= v2
-maximum(::EpsilonGreedyPolicy{:veryoptimistic, Ta, Tf}, v) where {Ta, Tf} = maximum(v)
-isequal(::EpsilonGreedyPolicy, v1, v2) = v1 == v2
-isequal(::SoftmaxPolicy, v1, v2) = v1 == v2
-
-samplegreedyaction(p, a::Int) = a # needed by mdplearner
-function samplegreedyaction(policy, values)
-    vmax = maximum(policy, values)
-    c = 1
-    a = 1
-    for (i, v) in enumerate(values)
-        if isequal(policy, v, vmax)
-            if rand() < 1/c
-                a = i
-            end
-            c += 1
-        end
-    end
-    a
 end
 
-function getactionprobabilities(policy::EpsilonGreedyPolicy, state)
-    values = policy.Q(state)
+function sample(p::EpsilonGreedyPolicy, values)
+    rand() < p.ϵ ? rand(1:length(values)) : rand(findallmax(values).max_idxs)
+end
+
+function getprob(policy::EpsilonGreedyPolicy, values)
     p = ones(length(values))/length(values) * policy.ϵ
-    vmax = maximum(policy, values)
-    c = 0
-    for v in values
-        if isequal(policy, v, vmax)
-            c += 1
-        end
-    end
-    p2 = (1. - policy.ϵ)/c
-    for (i, v) in enumerate(values)
-        if isequal(policy, v, vmax)
-            p[i] += p2
-        end
+    max_idxs, max_val = findallmax(values)
+    p_offset = (1. - policy.ϵ)/length(max_idxs)
+    for i in max_idxs
+        p[i] += p_offset
     end
     p
 end
@@ -143,22 +105,23 @@ function defaultnmarkovpolicy(learner, buffer, π)
     end
 end
 
-"""
-    mutable struct ForcedPolicy 
-        t::Int64
-        actions::Array{Int64, 1}
-"""
+##############################
+## ForcedPolicy
+##############################
 mutable struct ForcedPolicy 
-    t::Int64
-    actions::Array{Int64, 1}
+    n::Int
+    cur::Int
+    ForcedPolicy(n::Int) = new(n, 1)
 end
-export ForcedPolicy
-ForcedPolicy(actions) = ForcedPolicy(1, actions)
-function (p::ForcedPolicy)(s)
-    if p.t > length(p.actions)
-        p.t = 1
-    else
-        p.t += 1
-    end
-    p.actions[p.t]
+
+function sample(p::ForcedPolicy, values) 
+    # length(values) == p.n || error("lenght of $values doesn't match with $p")
+    cur, nxt = p.cur, p.cur + 1
+    p.cur = nxt > p.n ? 1 : nxt
+    cur
+end
+
+function getprob(p::ForcedPolicy, values) 
+    # length(values) == p.n || error("lenght of $values doesn't match with $p")
+    fill(1/p.n, size(values))
 end

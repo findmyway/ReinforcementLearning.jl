@@ -3,7 +3,7 @@ module ReinforcementLearning
 
 using DataStructures, Parameters, Compat.SparseArrays, Compat.LinearAlgebra,
 Compat.Distributed, Compat.Statistics, Compat.Dates, Compat, Requires
-import StatsBase
+using StatsBase
 using Compat: rmul!, @info
 using Compat.Statistics: mean
 

@@ -39,8 +39,9 @@ export DeepActorCritic
 DeepActorCritic(net; kargs...) = DeepActorCritic(; net = net, kargs...)
 
 function defaultpolicy(learner::DeepActorCritic, actionspace, buffer)
-    π = SoftmaxPolicy(Flux.Chain(Flux.mapleaves(Flux.Tracker.data, learner.net),
-                                 Flux.mapleaves(Flux.Tracker.data, learner.policylayer)))
+    p = SoftmaxPolicy()
+    π = Flux.Chain(Flux.mapleaves(Flux.Tracker.data, learner.net),
+                   Flux.mapleaves(Flux.Tracker.data, learner.policylayer))
     defaultnmarkovpolicy(learner, buffer, π)
 end
 

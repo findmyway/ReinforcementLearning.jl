@@ -26,7 +26,7 @@ selectaction(policy, values)
 Returns an action.
 
 ```
-getactionprobabilities(policy, state)
+getprob(policy, state)
 ```
 Returns a normalized (1-norm) vector with non-negative entries.
 

@@ -84,7 +84,7 @@ preprocess(preprocessor, reward, state, done) # returns a preprocessed (state, r
 ## Policies
 ```
 selectaction(policy, values)            # returns an action
-getactionprobabilities(policy, state)   # Returns a normalized (1-norm) vector with non-negative entries.
+getprob(policy, state)   # Returns a normalized (1-norm) vector with non-negative entries.
 ```
 
 ## Callbacks

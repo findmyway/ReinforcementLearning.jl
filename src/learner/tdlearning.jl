@@ -69,7 +69,7 @@ end
 @inline function futurevalue(p::ExpectedSarsaEndPolicy, learner, buffer)
     a = buffer.actions[end]
     s = buffer.states[end]
-    actionprobabilites = getactionprobabilities(learner.endvaluepolicy.policy,
+    actionprobabilites = getprob(learner.endvaluepolicy.policy,
                                                 getvalue(learner.params, s))
     m = 0.
     for (a, w) in enumerate(actionprobabilites)

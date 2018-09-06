@@ -163,7 +163,7 @@ end
 
 function update!(learner::PolicyGradientBackward, buffer)
     s = buffer.states[1]; a = buffer.actions[1];
-    gradlogpolicy!(getactionprobabilities(learner.policy, s), s, a, learner.traces.trace)
+    gradlogpolicy!(getprob(learner.policy, s), s, a, learner.traces.trace)
     update!(learner, buffer, buffer.rewards[1], s, a)
     if buffer.done[1]; resettraces!(learner.traces); end
 end
@@ -181,7 +181,7 @@ function update!(learner::PolicyGradientForward, buffer::EpisodeBuffer)
             G = learner.γ * G + rewards[t]
             δ = correct(learner.biascorrector, buffer, t, G)
             gammaeff *= 1/learner.γ
-            probs = getactionprobabilities(learner.policy, states[t])
+            probs = getprob(learner.policy, states[t])
             gradlogpolicy!(probs, states[t], actions[t], tmp,
                            learner.α * gammaeff * δ)
         end
@@ -205,7 +205,7 @@ function update!(learner::PolicyGradientForward, buffer::Buffer)
     if learner.initvalue == Inf && learner.params[actions[end], states[end]] == Inf
         learner.params[actions[end], states[end]] = 0.
     end
-    gradlogpolicy!(getactionprobabilities(learner.policy, states[1]),
+    gradlogpolicy!(getprob(learner.policy, states[1]),
                    states[1], actions[1], learner.params, learner.α * δ)
 end
 

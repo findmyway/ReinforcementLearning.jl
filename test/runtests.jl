@@ -1,6 +1,6 @@
 using ReinforcementLearning, Compat, Compat.Test, Compat.Random
 using Compat.Statistics: mean
-import ReinforcementLearning: getactionprobabilities, update!
+import ReinforcementLearning: getprob, update!
 if VERSION < v"0.7.0-beta2.171"
     const seed! = Random.srand
 else
