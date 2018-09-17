@@ -155,7 +155,7 @@ mutable struct ForcedPolicy
 end
 ForcedPolicy(actions) = ForcedPolicy(1, actions)
 function (p::ForcedPolicy)(s)
-    if p.t > length(p.actions)
+    if p.t == length(p.actions)
         p.t = 1
     else
         p.t += 1
