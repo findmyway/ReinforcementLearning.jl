@@ -136,11 +136,10 @@ function defaultnmarkovpolicy(learner, buffer, π)
     if learner.nmarkov == 1
         π
     else
-        a = buffer.states.data
-        data = getindex(a, map(x -> 1:x, size(a)[1:end-1])..., 1:learner.nmarkov)
+        states = buffer[:states]
         NMarkovPolicy(learner.nmarkov, 
                       π, 
-                      CircularArrayBuffer(data, learner.nmarkov, 0, 0, false))
+                      CircularArrayBuffer{eltype(states)}(learner.nmarkov, size(states)[1:end-1]))
     end
 end
 

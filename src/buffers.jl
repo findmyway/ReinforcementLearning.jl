@@ -262,6 +262,8 @@ function getproperty(b::AbstractTurnBuffer{<:Turn}, p::Symbol)
     end
 end
 
+getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol) = getfield(b, f)
+
 function getindex(b::AbstractTurnBuffer{T}, i::Int) where T<:Turn
     Turn(b[:states][i],
          b[:actions][i],
@@ -271,7 +273,16 @@ function getindex(b::AbstractTurnBuffer{T}, i::Int) where T<:Turn
          b[:actions][i+1])::T
 end
 
-getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol) = getfield(b, f)
+function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int) 
+    if     f == :states      getfield(b, f)[i]
+    elseif f == :actions     getfield(b, f)[i]
+    elseif f == :rewards     getfield(b, f)[i]
+    elseif f == :isdone      getfield(b, f)[i]
+    elseif f == :nextstates  getfield(b, :states)[i+1]
+    elseif f == :nextactions getfield(b, :actions)[i+1]
+    else throw("type $(typeof(f)) has no field $f")
+    end
+end
 
 function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, p::Symbol, i::Int, n::Int) 
     f = getproperty(b, p)

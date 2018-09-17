@@ -56,7 +56,7 @@ function DQN(net; kargs...)
     DQN(; net = Flux.gpu(net), na = na, kargs...)
 end
 function defaultbuffer(learner::Union{DQN, DeepActorCritic}, env, preprocessor)
-    state = preprocessstate(preprocessor, getstate(env)[1])
+    state = preprocessstate(preprocessor, getstate(env).observation)
     action = sample(actionspace(env))
     CircularTurnBuffer{Turn{typeof(state), typeof(action), Float64, Bool}}(
         typeof(learner) <: DQN ? learner.replaysize : learner.nsteps + learner.nmarkov - 1,

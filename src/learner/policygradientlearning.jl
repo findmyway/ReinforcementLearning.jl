@@ -121,10 +121,10 @@ end
 """
 Critic(; γ = .9, α = .1, ns = 10, initvalue = 0.) = Critic(α, γ, zeros(ns) .+ initvalue)
 function correct(corrector::Critic, buffer, t = 1, G = buffer.rewards[t])
-    s = buffer.states[t]
+    s = buffer[:states, t]
     δ = tderror(buffer.rewards, buffer.isdone, corrector.γ,
                 getvalue(corrector.V, s), 
-                getvalue(corrector.V, buffer.states[end]))
+                getvalue(corrector.V, buffer[:states, end]))
     if typeof(s) <: Int
         corrector.V[s] += corrector.α * δ
     else
@@ -160,27 +160,25 @@ end
 # update
 
 function update!(learner::PolicyGradientBackward, buffer)
-    s = buffer.states[1]; a = buffer.actions[1];
+    t = buffer[1]
+    s, a, d = t.state, t.action, t.isdone
     gradlogpolicy!(getactionprobabilities(learner.policy, s), s, a, learner.traces.trace)
     update!(learner, buffer, buffer.rewards[1], s, a)
-    if buffer.isdone[1]; resettraces!(learner.traces); end
+    if d; resettraces!(learner.traces); end
 end
 
 
 function update!(learner::PolicyGradientForward, buffer::EpisodeTurnBuffer)
-    if buffer.isdone[end]
-        rewards = buffer.rewards
-        states = buffer.states
-        actions = buffer.actions
-        G = rewards[end]
-        gammaeff = learner.γ^length(rewards)
+    if buffer[:isdone, end]
+        G = buffer[:rewards, end]
+        gammaeff = learner.γ^length(buffer)
         tmp = deepcopy(learner.params)
         for t in length(rewards)-1:-1:1
-            G = learner.γ * G + rewards[t]
+            G = learner.γ * G + buffer[:rewards, t]
             δ = correct(learner.biascorrector, buffer, t, G)
             gammaeff *= 1/learner.γ
-            probs = getactionprobabilities(learner.policy, states[t])
-            gradlogpolicy!(probs, states[t], actions[t], tmp,
+            probs = getactionprobabilities(learner.policy, buffer[:states, t])
+            gradlogpolicy!(probs, buffer[:states, t], buffer[:actions, t], tmp,
                            learner.α * gammaeff * δ)
         end
         copy!(learner.params, tmp)
@@ -196,13 +194,11 @@ end
 # this here.
 function update!(learner::PolicyGradientForward, buffer::CircularTurnBuffer)
     !isfull(buffer) && return
-    rewards = buffer.rewards
-    states = buffer.states
-    actions = buffer.actions
+    t1, t_end = buffer[1], buffer[end]
     δ = correct(learner.biascorrector, buffer)
-    if learner.initvalue == Inf && learner.params[actions[end], states[end]] == Inf
-        learner.params[actions[end], states[end]] = 0.
+    if learner.initvalue == Inf && learner.params[t_end.action, t_end.state] == Inf
+        learner.params[t_end.action, t_end.state] = 0.
     end
-    gradlogpolicy!(getactionprobabilities(learner.policy, states[1]),
-                   states[1], actions[1], learner.params, learner.α * δ)
+    gradlogpolicy!(getactionprobabilities(learner.policy, t1.state),
+                   t1.state, t1.action, learner.params, learner.α * δ)
 end

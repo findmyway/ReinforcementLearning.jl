@@ -11,8 +11,7 @@ function learn!(rlsetup)
         a = policy(s)
         fillbuffer && push!(buffer, s, a)
     else
-        lastturn = buffer[end]
-        s, a = lastturn.nextstate, lastturn.nextaction
+        s, a = buffer[:nextstates, end], buffer[:nextactions, end]
     end
     while true
         next_obs, r, isdone = interact!(environment, a)
