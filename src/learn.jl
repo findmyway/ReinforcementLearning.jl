@@ -6,7 +6,7 @@ Runs an [`rlsetup`](@ref RLSetup) with learning.
 function learn!(rlsetup)
     @unpack learner, policy, fillbuffer, preprocessor, buffer, environment, stoppingcriterion = rlsetup
     if isempty(buffer)
-        obs = reset!(environment)
+        obs = reset!(environment).observation
         s = preprocessstate(preprocessor, obs)
         a = policy(s)
         fillbuffer && push!(buffer, s, a)
@@ -17,7 +17,7 @@ function learn!(rlsetup)
     while true
         next_obs, r, isdone = interact!(environment, a)
         if isdone 
-            next_obs = reset!(environment)
+            next_obs = reset!(environment).observation
         end
         next_s = preprocessstate(preprocessor, next_obs)
         next_a = policy(next_s)
