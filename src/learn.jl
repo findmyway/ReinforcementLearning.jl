@@ -19,9 +19,9 @@ function learn!(rlsetup)
             next_obs = reset!(environment).observation
         end
         next_s = preprocessstate(preprocessor, next_obs)
-        next_a = policy(next_s)
+        a = policy(next_s)
 
-        fillbuffer &&  push!(buffer, r, isdone, next_s, next_a)
+        fillbuffer &&  push!(buffer, r, isdone, next_s, a)
         rlsetup.islearning && update!(learner, buffer)
 
         for callback in rlsetup.callbacks
@@ -29,7 +29,6 @@ function learn!(rlsetup)
         end
 
         isbreak!(stoppingcriterion, next_obs, a, r, isdone) && break
-        a = next_a
     end
 end
 

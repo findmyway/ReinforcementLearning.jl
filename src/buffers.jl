@@ -270,7 +270,7 @@ function getindex(b::AbstractTurnBuffer{T}, i::Int) where T<:Turn
          b[:rewards][i],
          b[:isdone][i],
          b[:states][i+1],
-         b[:actions][i+1])::T
+         b[:actions][i+1])
 end
 
 function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int) 
