@@ -83,7 +83,7 @@ ActorCriticPolicyGradient(; nsteps = 1, γ = .9, ns = 10,
     struct NoBiasCorrector <: AbstractBiasCorrector
 """
 struct NoBiasCorrector end
-correct(::NoBiasCorrector, buffer, t = 1, G = buffer.rewards[t]) = G
+correct(::NoBiasCorrector, buffer, t = 1, G = buffer[:rewards, t]) = G
 
 """
     mutable struct RewardLowpassFilterBiasCorrector <: AbstractBiasCorrector
@@ -99,9 +99,9 @@ mutable struct RewardLowpassFilterBiasCorrector
 end
 RewardLowpassFilterBiasCorrector(λ) = RewardLowpassFilterBiasCorrector(λ, 0.)
 function correct(corrector::RewardLowpassFilterBiasCorrector, buffer, 
-                 t = 1, G = buffer.rewards[t])
+                 t = 1, G = buffer[:rewards, t])
     corrector.rmean *= corrector.λ
-    corrector.rmean += (1 - corrector.λ) * buffer.rewards[t]
+    corrector.rmean += (1 - corrector.λ) * buffer[:rewards, t]
     G - corrector.rmean
 end
 
@@ -120,9 +120,9 @@ end
     Critic(; γ = .9, α = .1, ns = 10, initvalue = 0.)
 """
 Critic(; γ = .9, α = .1, ns = 10, initvalue = 0.) = Critic(α, γ, zeros(ns) .+ initvalue)
-function correct(corrector::Critic, buffer, t = 1, G = buffer.rewards[t])
+function correct(corrector::Critic, buffer, t = 1, G = buffer[:rewards, t])
     s = buffer[:states, t]
-    δ = tderror(buffer.rewards, buffer.isdone, corrector.γ,
+    δ = tderror(buffer[:rewards], buffer[:isdone], corrector.γ,
                 getvalue(corrector.V, s), 
                 getvalue(corrector.V, buffer[:states, end]))
     if typeof(s) <: Int
@@ -160,10 +160,8 @@ end
 # update
 
 function update!(learner::PolicyGradientBackward, buffer)
-    t = buffer[1]
-    s, a, d = t.state, t.action, t.isdone
-    gradlogpolicy!(getactionprobabilities(learner.policy, s), s, a, learner.traces.trace)
-    update!(learner, buffer, buffer.rewards[1], s, a)
+    gradlogpolicy!(getactionprobabilities(learner.policy, buffer[:states, 1]), buffer[:states, 1], buffer[:actions, 1], learner.traces.trace)
+    update!(learner, buffer, buffer[:rewards, 1], buffer[:states, 1], buffer[:actions, 1])
     if d; resettraces!(learner.traces); end
 end
 
@@ -194,11 +192,10 @@ end
 # this here.
 function update!(learner::PolicyGradientForward, buffer::CircularTurnBuffer)
     !isfull(buffer) && return
-    t1, t_end = buffer[1], buffer[end]
     δ = correct(learner.biascorrector, buffer)
-    if learner.initvalue == Inf && learner.params[t_end.action, t_end.state] == Inf
-        learner.params[t_end.action, t_end.state] = 0.
+    if learner.initvalue == Inf && learner.params[buffer[:actions, end], buffer[:states, end]] == Inf
+        learner.params[buffer[:actions, end], buffer[:states, end]] = 0.
     end
-    gradlogpolicy!(getactionprobabilities(learner.policy, t1.state),
-                   t1.state, t1.action, learner.params, learner.α * δ)
+    gradlogpolicy!(getactionprobabilities(learner.policy, buffer[:states, 1]),
+                   buffer[:states, 1], buffer[:actions, 1], learner.params, learner.α * δ)
 end

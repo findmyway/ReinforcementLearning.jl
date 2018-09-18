@@ -25,18 +25,17 @@ end
 export MonteCarlo
 
 function update!(learner::MonteCarlo, buffer)
-    t_end = buffer[end]
-    if learner.Q[t_end.action, t_end.state] == Inf64
-        learner.Q[t_end.action, t_end.state] = 0.
+    if learner.Q[buffer[:actions, end], buffer[:states, end]] == Inf64
+        learner.Q[buffer[:actions, end], buffer[:states, end]] = 0.
     end
-    if buffer.isdone[end]
+    if buffer[:isdone, end]
         G = 0.
         for t in length(buffer):-1:1
             turn = buffer[t]
-            G = learner.γ * G + turn.reward
-            n = learner.Nsa[turn.action, turn.state] += 1
-            learner.Q[turn.action, turn.state] *= (1 - 1/n)
-            learner.Q[turn.action, turn.state] += 1/n * G
+            G = learner.γ * G + buffer[:rewards, t]
+            n = learner.Nsa[buffer[:actions, t], buffer[:states,t]] += 1
+            learner.Q[buffer[:actions, t], buffer[:states, t]] *= (1 - 1/n)
+            learner.Q[buffer[:actions, t], buffer[:states, t]] += 1/n * G
         end
     end
 end

@@ -118,7 +118,6 @@ end
         push!(b, 1.0, false, [[1. 1.];[1. 1.]], 1)
         push!(b, 2.0, false, [[2. 2.];[2. 2.]], 2)
         @test length(b) == 2
-        @test b[end] == Turn([[1. 1.];[1. 1.]], 1, 2.0, false, [[2. 2.];[2. 2.]], 2)
     end
 end
 

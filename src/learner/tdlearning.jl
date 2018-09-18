@@ -97,7 +97,7 @@ end
 end
 
 function tderror(learner, buffer)
-    tderror(buffer.rewards, buffer.isdone, learner.γ,
+    tderror(buffer[:rewards], buffer[:isdone], learner.γ,
             getvaluecheckinf(learner, buffer[:actions, 1], buffer[:states, 1]),
             futurevalue(learner.endvaluepolicy, learner, buffer))
 end

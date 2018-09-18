@@ -1,4 +1,4 @@
-import Base: (==), size, getindex, setindex!, length, push!, empty!, isempty, eltype, getproperty, view
+import Base: (==), size, getindex, setindex!, length, push!, empty!, isempty, eltype, getproperty, view, lastindex
 export CircularArrayBuffer, CircularTurnBuffer, EpisodeTurnBuffer, Turn, SARDSATurn,
        viewconsecutive, isfull, capacity
 
@@ -179,18 +179,18 @@ end
 
 "Only used at the first turn"
 function push!(b::CircularTurnBuffer{T, Ts, Ta, Tr, Td}, s::Ts, a::Ta) where {T, Ts, Ta, Tr, Td}
-    push!(b[:states], s)
-    push!(b[:actions], a)
+    push!(b.states, s)
+    push!(b.actions, a)
 end
 
 function push!(b::CircularTurnBuffer{T, Ts, Ta, Tr, Td}, r::Tr, d::Td, s::Ts, a::Ta) where {T, Ts, Ta, Tr, Td}
-    push!(b[:rewards], r)
-    push!(b[:isdone], d)
-    push!(b[:states], s)
-    push!(b[:actions], a)
+    push!(b.rewards, r)
+    push!(b.isdone, d)
+    push!(b.states, s)
+    push!(b.actions, a)
 end
 
-isfull(b::CircularTurnBuffer) = isfull(b[:states])
+isfull(b::CircularTurnBuffer) = isfull(b.states)
 
 ##############################
 ## EpisodeTurnBuffer
@@ -219,81 +219,82 @@ end
 
 "Only used at the first turn"
 function push!(b::EpisodeTurnBuffer{T, Ts, Ta, Tr, Td}, s::Ts, a::Ta) where {T, Ts, Ta, Tr, Td}
-    push!(b[:states], s)
-    push!(b[:actions], a)
+    push!(b.states, s)
+    push!(b.actions, a)
 end
 
 function push!(b::EpisodeTurnBuffer{T, Ts, Ta, Tr, Td}, r::Tr, d::Td, s::Ts, a::Ta) where {T, Ts, Ta, Tr, Td}
     if isfull(b)
-        ns, na = b.nextstates[end], b.nextactions[end]
+        ns, na = b[:nextstates, end], b[:nextactions, end]
         empty!(b)
         push!(b, ns, na)
     end
-    push!(b[:rewards], r)
-    push!(b[:isdone], d)
-    push!(b[:states], s)
-    push!(b[:actions], a)
+    push!(b.rewards, r)
+    push!(b.isdone, d)
+    push!(b.states, s)
+    push!(b.actions, a)
 end
 
 "last turn is the end of an episode"
-isfull(b::EpisodeTurnBuffer) = length(b) > 0 && convert(Bool, b[end].isdone)
+isfull(b::EpisodeTurnBuffer) = length(b) > 0 && convert(Bool, b[:isdone, end])
 
 ##############################
 viewconsecutive(v::Vector, I::Vector{Int}, n::Int) = reshape(view(v, [x for i in I for x in i-n+1:i]), n, length(I))
 
 size(b::AbstractTurnBuffer{<:Turn}) = (length(b),)
-length(b::AbstractTurnBuffer{<:Turn}) = max(length(b[:states]) - 1, 0)
+length(b::AbstractTurnBuffer{<:Turn}) = length(b.isdone)
 eltype(b::AbstractTurnBuffer{T}) where T = T
 isempty(b::AbstractTurnBuffer{<:Turn}) = length(b) == 0
+lastindex(b::AbstractTurnBuffer{<:Turn}) = length(b)
+lastindex(b::AbstractTurnBuffer{<:Turn}, d) = length(b)
 
 function empty!(b::AbstractTurnBuffer{<:Turn})
-    empty!(b[:states])
-    empty!(b[:actions])
-    empty!(b[:rewards])
-    empty!(b[:isdone])
+    empty!(b.states)
+    empty!(b.actions)
+    empty!(b.rewards)
+    empty!(b.isdone)
 end
 
-function getproperty(b::AbstractTurnBuffer{<:Turn}, p::Symbol)
-    if     p == :states      @view getfield(b, p)[1:end-1]
-    elseif p == :actions     @view getfield(b, p)[1:end-1]
-    elseif p == :rewards     @view getfield(b, p)[1:end]
-    elseif p == :isdone      @view getfield(b, p)[1:end]
-    elseif p == :nextstates  @view getfield(b, :states)[2:end]
-    elseif p == :nextactions @view getfield(b, :actions)[2:end]
-    else throw("type $(typeof(b)) has no field $p")
+function getindex(b::AbstractTurnBuffer{<:Turn}, i::Int)
+    Turn(b[:states, i],
+         b[:actions, i],
+         b[:rewards, i],
+         b[:isdone, i],
+         b[:nextstates, i],
+         b[:nextactions, i])
+end
+
+function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol) 
+    n = length(b)
+    if     f == :states      view(getfield(b, f), 1:n)
+    elseif f == :actions     view(getfield(b, f), 1:n)
+    elseif f == :rewards     view(getfield(b, f), 1:n)
+    elseif f == :isdone      view(getfield(b, f), 1:n)
+    elseif f == :nextstates  view(getfield(b, :states), 2:n+1)
+    elseif f == :nextactions view(getfield(b, :actions), 2:n+1)
+    else throw("unknown index $f")
     end
 end
 
-getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol) = getfield(b, f)
-
-function getindex(b::AbstractTurnBuffer{T}, i::Int) where T<:Turn
-    Turn(b[:states][i],
-         b[:actions][i],
-         b[:rewards][i],
-         b[:isdone][i],
-         b[:states][i+1],
-         b[:actions][i+1])
-end
-
-function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int) 
+function getindex(b::AbstractTurnBuffer{T}, f::Symbol, i::Int) where T<:Turn
     if     f == :states      v = view(getfield(b, f), i)
     elseif f == :actions     v = view(getfield(b, f), i)
     elseif f == :rewards     v = view(getfield(b, f), i)
     elseif f == :isdone      v = view(getfield(b, f), i)
     elseif f == :nextstates  v = view(getfield(b, :states), i+1)
     elseif f == :nextactions v = view(getfield(b, :actions), i+1)
-    else throw("type $(typeof(f)) has no field $f")
+    else throw("unknown index $f")
     end
     ndims(v) == 0 ? v[1] : v
 end
 
 function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, p::Symbol, i::Int, n::Int) 
-    f = getproperty(b, p)
+    f = b[p]
     view(f, [(:) for _ in 1:ndims(f)-1]..., i-n+1:i)
 end
 
 function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, p::Symbol, I::Vector{Int}, n::Int) 
-    f = getproperty(b, p)
+    f = b[p]
     N = ndims(f)
     reshape(view(f, [(:) for _ in 1:N-1]..., [j for i in I for j in i-n+1:i]), size(f)[1:N-1]..., n, length(I))
 end
