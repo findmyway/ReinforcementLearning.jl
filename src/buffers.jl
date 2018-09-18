@@ -276,44 +276,81 @@ function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol)
     end
 end
 
-function getindex(b::AbstractTurnBuffer{<:Turn{<:AbstractArray}}, f::Symbol, i::Int)
-    if     f == :states      view(getfield(b, f), i)
-    elseif f == :actions     getfield(b, f)[i]
-    elseif f == :rewards     getfield(b, f)[i]
-    elseif f == :isdone      getfield(b, f)[i]
-    elseif f == :nextstates  view(getfield(b, :states), i+1)
-    elseif f == :nextactions getfield(b, :actions)[i+1]
+# function getindex(b::AbstractTurnBuffer{<:Turn{<:AbstractArray}}, f::Symbol, i::Int)
+#     if     f == :states      view(getfield(b, f), i)
+#     elseif f == :actions     getfield(b, f)[i]
+#     elseif f == :rewards     getfield(b, f)[i]
+#     elseif f == :isdone      getfield(b, f)[i]
+#     elseif f == :nextstates  view(getfield(b, :states), i+1)
+#     elseif f == :nextactions getfield(b, :actions)[i+1]
+#     else throw("unknown index $f")
+#     end
+# end
+
+# function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int)
+#     if     f == :states      getfield(b, f)[i]
+#     elseif f == :actions     getfield(b, f)[i]
+#     elseif f == :rewards     getfield(b, f)[i]
+#     elseif f == :isdone      getfield(b, f)[i]
+#     elseif f == :nextstates  getfield(b, :states)[i+1]
+#     elseif f == :nextactions getfield(b, :actions)[i+1]
+#     else throw("unknown index $f")
+#     end
+# end
+
+
+function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int) 
+    if     f == :states      v = view(getfield(b, f), i)
+    elseif f == :actions     v = view(getfield(b, f), i)
+    elseif f == :rewards     v = view(getfield(b, f), i)
+    elseif f == :isdone      v = view(getfield(b, f), i)
+    elseif f == :nextstates  v = view(getfield(b, :states), i+1)
+    elseif f == :nextactions v = view(getfield(b, :actions), i+1)
     else throw("unknown index $f")
     end
-    # if     f == :states      v = view(getfield(b, f), i)
-    # elseif f == :actions     v = view(getfield(b, f), i)
-    # elseif f == :rewards     v = view(getfield(b, f), i)
-    # elseif f == :isdone      v = view(getfield(b, f), i)
-    # elseif f == :nextstates  v = view(getfield(b, :states), i+1)
-    # elseif f == :nextactions v = view(getfield(b, :actions), i+1)
-    # else throw("unknown index $f")
-    # end
-    # ndims(v) == 0 ? v[1] : v
+    ndims(v) == 0 ? v[1] : v
 end
 
-function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int)
-    if     f == :states      getfield(b, f)[i]
-    elseif f == :actions     getfield(b, f)[i]
-    elseif f == :rewards     getfield(b, f)[i]
-    elseif f == :isdone      getfield(b, f)[i]
-    elseif f == :nextstates  getfield(b, :states)[i+1]
-    elseif f == :nextactions getfield(b, :actions)[i+1]
+function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::UnitRange{Int}) 
+    if     f == :states      view(getfield(b, f), I)
+    elseif f == :actions     view(getfield(b, f), I)
+    elseif f == :rewards     view(getfield(b, f), I)
+    elseif f == :isdone      view(getfield(b, f), I)
+    elseif f == :nextstates  view(getfield(b, :states), I.start+1:I.stop+1)
+    elseif f == :nextactions view(getfield(b, :actions), I.start+1:I.stop+1)
     else throw("unknown index $f")
     end
 end
 
-function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, p::Symbol, i::Int, n::Int) 
-    f = b[p]
-    view(f, [(:) for _ in 1:ndims(f)-1]..., i-n+1:i)
+function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::Vector{Int}) 
+    if     f == :states      view(getfield(b, f), I)
+    elseif f == :actions     view(getfield(b, f), I)
+    elseif f == :rewards     view(getfield(b, f), I)
+    elseif f == :isdone      view(getfield(b, f), I)
+    elseif f == :nextstates  view(getfield(b, :states), I.+1)
+    elseif f == :nextactions view(getfield(b, :actions), I.+1)
+    else throw("unknown index $f")
+    end
 end
 
-function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, p::Symbol, I::Vector{Int}, n::Int) 
-    f = b[p]
-    N = ndims(f)
-    reshape(view(f, [(:) for _ in 1:N-1]..., [j for i in I for j in i-n+1:i]), size(f)[1:N-1]..., n, length(I))
+function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::Vector{Int}, n::Int) 
+    if     f == :states      viewconsecutive(getfield(b, f), I, n)
+    elseif f == :actions     viewconsecutive(getfield(b, f), I, n)
+    elseif f == :rewards     viewconsecutive(getfield(b, f), I, n)
+    elseif f == :isdone      viewconsecutive(getfield(b, f), I, n)
+    elseif f == :nextstates  viewconsecutive(getfield(b, :states), I.+1, n)
+    elseif f == :nextactions viewconsecutive(getfield(b, :actions), I.+1, n)
+    else throw("unknown index $f")
+    end
+end
+
+function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int, n::Int) 
+    if     f == :states      viewconsecutive(getfield(b, f), i, n)
+    elseif f == :actions     viewconsecutive(getfield(b, f), i, n)
+    elseif f == :rewards     viewconsecutive(getfield(b, f), i, n)
+    elseif f == :isdone      viewconsecutive(getfield(b, f), i, n)
+    elseif f == :nextstates  viewconsecutive(getfield(b, :states), i+1, n)
+    elseif f == :nextactions viewconsecutive(getfield(b, :actions), i+1, n)
+    else throw("unknown index $f")
+    end
 end

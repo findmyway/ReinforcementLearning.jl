@@ -83,7 +83,7 @@ function update!(learner::DQN, b)
     end
     (learner.t < learner.startlearningat || 
      learner.t % learner.updateevery != 0) && return
-    indices = StatsBase.sample(1:length(b.rewards) - learner.nsteps + 1, 
+    indices = StatsBase.sample(1:length(b) - learner.nsteps + 1, 
                                learner.minibatchsize, 
                                replace = false)
 
@@ -93,11 +93,11 @@ function update!(learner::DQN, b)
     st = viewconsecutive(b, :nextstates, indices .+ (learner.nsteps - 1), learner.nmarkov)
     qat = learner.targetnet(convert(Array, reshape(st, size(st)[1:ndims(st)-2]..., size(st)[end-1] * size(st)[end])))
 
-    q = selecta(qa, b.actions[indices])
+    q = selecta(qa, b[:actions, indices])
     rs = Float64[]
     for (k, i) in enumerate(indices)
-        r, γeff = discountedrewards(b.rewards[i:i + learner.nsteps - 1], 
-                                    b.isdone[i:i + learner.nsteps - 1], 
+        r, γeff = discountedrewards(b[:rewards, i:i + learner.nsteps - 1], 
+                                    b[:isdone, i:i + learner.nsteps - 1], 
                                     learner.γ)
         if γeff > 0
             if learner.doubledqn
