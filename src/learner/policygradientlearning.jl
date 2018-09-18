@@ -141,7 +141,7 @@ function gradlogpolicy!(probs, state::Int, action, output, factor = 1.)
     BLAS.axpy!(-factor, probs, 1:na, output, (state - 1) * na + 1 : state * na)
 end
 
-function gradlogpolicy!(probs, state::Vector, action, output, factor = 1.)
+function gradlogpolicy!(probs, state::AbstractArray{T, 1} where T, action, output, factor = 1.)
     na, ns = size(output)
     output[action, :] += factor * state
     BLAS.ger!(-factor, probs, state, output)
