@@ -159,21 +159,18 @@ See also: [`EpisodeTurnBuffer`](@ref)
 """
 struct CircularTurnBuffer{T<:Turn, Ts, Ta, Tr, Td} <: AbstractTurnBuffer{T}
     states::CircularArrayBuffer{Ts}
-    actions::CircularArrayBuffer{Ta}
-    rewards::CircularArrayBuffer{Tr}
-    isdone::CircularArrayBuffer{Td}
+    actions::CircularBuffer{Ta}
+    rewards::CircularBuffer{Tr}
+    isdone::CircularBuffer{Td}
     function CircularTurnBuffer{T}(
         capacity::Int,
-        size_s::Tuple{Vararg{Int}}=(),
-        size_a::Tuple{Vararg{Int}}=(),
-        size_r::Tuple{Vararg{Int}}=(),
-        size_d::Tuple{Vararg{Int}}=()) where T<:Turn
+        size_s::Tuple{Vararg{Int}}=()) where T<:Turn
         Ts, Ta, Tr, Td = T.parameters
         new{T, Ts, Ta, Tr, Td}(
             CircularArrayBuffer{Ts}(capacity+1, size_s...),
-            CircularArrayBuffer{Ta}(capacity+1, size_a...),
-            CircularArrayBuffer{Tr}(capacity, size_r...),
-            CircularArrayBuffer{Td}(capacity, size_d...))
+            CircularBuffer{Ta}(capacity+1),
+            CircularBuffer{Tr}(capacity),
+            CircularBuffer{Td}(capacity))
     end
 end
 
@@ -264,93 +261,40 @@ function getindex(b::AbstractTurnBuffer{<:Turn}, i::Int)
          b[:nextactions, i])
 end
 
+const _field_mapping = Dict(:states      => (:states, 0),
+                            :actions     => (:actions, 0),
+                            :rewards     => (:rewards, 0),
+                            :isdone      => (:isdone, 0),
+                            :nextstates  => (:states, 1),
+                            :nextactions => (:actions, 1))
+
 function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol) 
-    n = length(b)
-    if     f == :states      view(getfield(b, f), 1:n)
-    elseif f == :actions     view(getfield(b, f), 1:n)
-    elseif f == :rewards     view(getfield(b, f), 1:n)
-    elseif f == :isdone      view(getfield(b, f), 1:n)
-    elseif f == :nextstates  view(getfield(b, :states), 2:n+1)
-    elseif f == :nextactions view(getfield(b, :actions), 2:n+1)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    view(getfield(b, field), 1+offset:length(b)+offset)
 end
 
-# function getindex(b::AbstractTurnBuffer{<:Turn{<:AbstractArray}}, f::Symbol, i::Int)
-#     if     f == :states      view(getfield(b, f), i)
-#     elseif f == :actions     getfield(b, f)[i]
-#     elseif f == :rewards     getfield(b, f)[i]
-#     elseif f == :isdone      getfield(b, f)[i]
-#     elseif f == :nextstates  view(getfield(b, :states), i+1)
-#     elseif f == :nextactions getfield(b, :actions)[i+1]
-#     else throw("unknown index $f")
-#     end
-# end
-
-# function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int)
-#     if     f == :states      getfield(b, f)[i]
-#     elseif f == :actions     getfield(b, f)[i]
-#     elseif f == :rewards     getfield(b, f)[i]
-#     elseif f == :isdone      getfield(b, f)[i]
-#     elseif f == :nextstates  getfield(b, :states)[i+1]
-#     elseif f == :nextactions getfield(b, :actions)[i+1]
-#     else throw("unknown index $f")
-#     end
-# end
-
-
 function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int) 
-    if     f == :states      v = view(getfield(b, f), i)
-    elseif f == :actions     v = view(getfield(b, f), i)
-    elseif f == :rewards     v = view(getfield(b, f), i)
-    elseif f == :isdone      v = view(getfield(b, f), i)
-    elseif f == :nextstates  v = view(getfield(b, :states), i+1)
-    elseif f == :nextactions v = view(getfield(b, :actions), i+1)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    v = view(getfield(b, field), i+offset)
     ndims(v) == 0 ? v[1] : v
 end
 
 function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::UnitRange{Int}) 
-    if     f == :states      view(getfield(b, f), I)
-    elseif f == :actions     view(getfield(b, f), I)
-    elseif f == :rewards     view(getfield(b, f), I)
-    elseif f == :isdone      view(getfield(b, f), I)
-    elseif f == :nextstates  view(getfield(b, :states), I.start+1:I.stop+1)
-    elseif f == :nextactions view(getfield(b, :actions), I.start+1:I.stop+1)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    view(getfield(b, field), I.start+offset:I.stop+offset)
 end
 
 function getindex(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::Vector{Int}) 
-    if     f == :states      view(getfield(b, f), I)
-    elseif f == :actions     view(getfield(b, f), I)
-    elseif f == :rewards     view(getfield(b, f), I)
-    elseif f == :isdone      view(getfield(b, f), I)
-    elseif f == :nextstates  view(getfield(b, :states), I.+1)
-    elseif f == :nextactions view(getfield(b, :actions), I.+1)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    view(getfield(b, field), I.+offset)
 end
 
 function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, f::Symbol, I::Vector{Int}, n::Int) 
-    if     f == :states      viewconsecutive(getfield(b, f), I, n)
-    elseif f == :actions     viewconsecutive(getfield(b, f), I, n)
-    elseif f == :rewards     viewconsecutive(getfield(b, f), I, n)
-    elseif f == :isdone      viewconsecutive(getfield(b, f), I, n)
-    elseif f == :nextstates  viewconsecutive(getfield(b, :states), I.+1, n)
-    elseif f == :nextactions viewconsecutive(getfield(b, :actions), I.+1, n)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    viewconsecutive(getfield(b, field), I.+offset, n)
 end
 
 function viewconsecutive(b::AbstractTurnBuffer{<:Turn}, f::Symbol, i::Int, n::Int) 
-    if     f == :states      viewconsecutive(getfield(b, f), i, n)
-    elseif f == :actions     viewconsecutive(getfield(b, f), i, n)
-    elseif f == :rewards     viewconsecutive(getfield(b, f), i, n)
-    elseif f == :isdone      viewconsecutive(getfield(b, f), i, n)
-    elseif f == :nextstates  viewconsecutive(getfield(b, :states), i+1, n)
-    elseif f == :nextactions viewconsecutive(getfield(b, :actions), i+1, n)
-    else throw("unknown index $f")
-    end
+    field, offset = _field_mapping[f]
+    viewconsecutive(getfield(b, field), i+offset, n)
 end

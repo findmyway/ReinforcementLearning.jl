@@ -39,11 +39,10 @@ function defaultbuffer(learner, env, preprocessor)
     statetype = typeof(preprocessstate(preprocessor, getstate(env).observation))
     state_sz = size(preprocessstate(preprocessor, getstate(env).observation))
     actiontype = typeof(sample(actionspace(env)))
-    action_sz = size(sample(actionspace(env)))
     if capacity < 0
         EpisodeTurnBuffer{Turn{statetype, actiontype, Float64, Bool}}()
     else
-        CircularTurnBuffer{Turn{statetype, actiontype, Float64, Bool}}(capacity, state_sz, action_sz, (), ())
+        CircularTurnBuffer{Turn{statetype, actiontype, Float64, Bool}}(capacity, state_sz)
     end
 end
 

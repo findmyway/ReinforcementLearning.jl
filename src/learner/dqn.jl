@@ -60,8 +60,7 @@ function defaultbuffer(learner::Union{DQN, DeepActorCritic}, env, preprocessor)
     action = sample(actionspace(env))
     CircularTurnBuffer{Turn{typeof(state), typeof(action), Float64, Bool}}(
         typeof(learner) <: DQN ? learner.replaysize : learner.nsteps + learner.nmarkov - 1,
-        size(state),
-        size(action))
+        size(state))
 end
 function defaultpolicy(learner::DQN, actionspace, buffer)
     π = EpsilonGreedyPolicy(.1, actionspace, 
