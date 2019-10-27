@@ -181,8 +181,8 @@ end
 
 Use a [`StackedState`](@ref) to restore the latest several state frames.
 """
-struct StackFrames{E, T, N} <: AbstractPreprocessor
-    stacked_state::StackedState{E, T, N}
+struct StackFrames{T, N} <: AbstractPreprocessor
+    stacked_state::StackedState{T, N}
 end
 
 StackFrames(;kw...) = StackFrames(StackedState(;kw...))

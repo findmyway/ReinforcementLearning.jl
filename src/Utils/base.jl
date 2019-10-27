@@ -5,7 +5,9 @@ export findallmax,
        SampleAvg,
        CachedSum,
        huber_loss,
-       drop_last_dim
+       drop_last_dim,
+       select_last_dim,
+       select_last_frame
 
 """
     huber_loss(labels, predictions;δ = 1.0)
@@ -114,3 +116,6 @@ function (c::CachedSum)(k, x)
 end
 
 drop_last_dim(x) = dropdims(x; dims=ndims(x))
+select_last_dim(x, i) = selectdim(x, ndims(x), i)
+select_last_dim(x::AbstractArray{<:Any, 1}, i::Int) = x[i]  # a little ad-hoc, since by default it will return a container by view. see more https://discourse.julialang.org/t/understanding-view/18286/3
+select_last_frame(x) = select_last_dim(x, size(x, ndims(x)))

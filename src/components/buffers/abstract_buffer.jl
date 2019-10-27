@@ -31,7 +31,7 @@ Base.empty!(b::AbstractTurnBuffer) =
         empty!(x)
     end
 Base.getindex(b::AbstractTurnBuffer{names,types}, i::Int) where {names,types} =
-    NamedTuple{names,types}(Tuple(x[i] for x in buffers(b)))
+    NamedTuple{names,types}(Tuple(select_last_dim(x, i) for x in buffers(b)))
 isfull(b::AbstractTurnBuffer) = all(isfull(x) for x in buffers(b))
 
 function Base.push!(b::AbstractTurnBuffer; kw...)
@@ -65,12 +65,12 @@ const RTSA = (:reward, :terminal, :state, :action)
 
 Base.getindex(b::AbstractTurnBuffer{RTSA,types}, i::Int) where {types} =
     (
-     state = state(b)[i],
-     action = action(b)[i],
-     reward = reward(b)[i+1],
-     terminal = terminal(b)[i+1],
-     next_state = state(b)[i+1],
-     next_action = action(b)[i+1],
+     state = select_last_dim(state(b), i),
+     action = select_last_dim(action(b), i),
+     reward = select_last_dim(reward(b), i+1),
+     terminal = select_last_dim(terminal(b), i+1),
+     next_state = select_last_dim(state(b), i+1),
+     next_action = select_last_dim(action(b), i+1),
     )
 
 #####
@@ -83,13 +83,13 @@ priority(b::AbstractTurnBuffer) = buffers(b).priority
 
 Base.getindex(b::AbstractTurnBuffer{PRTSA,types}, i::Int) where {types} =
     (
-     state = state(b)[i],
-     action = action(b)[i],
-     reward = reward(b)[i+1],
-     terminal = terminal(b)[i+1],
-     next_state = state(b)[i+1],
-     next_action = action(b)[i+1],
-     priority = priority(b)[i+1],
+     state = select_last_dim(state(b), i),
+     action = select_last_dim(action(b), i),
+     reward = select_last_dim(reward(b), i+1),
+     terminal = select_last_dim(terminal(b), i+1),
+     next_state = select_last_dim(state(b), i+1),
+     next_action = select_last_dim(action(b), i+1),
+     priority = select_last_dim(priority(b), i+1),
     )
 
 function consecutive_view(b::AbstractTurnBuffer, inds, n, n_frames)
