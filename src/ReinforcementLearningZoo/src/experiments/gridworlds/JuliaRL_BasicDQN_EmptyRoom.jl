@@ -32,9 +32,9 @@ function RLCore.Experiment(
             learner=BasicDQNLearner(
                 approximator=NeuralNetworkApproximator(
                     model=Chain(
-                        Dense(ns, 128, relu; initW=glorot_uniform(rng)),
-                        Dense(128, 128, relu; initW=glorot_uniform(rng)),
-                        Dense(128, na; initW=glorot_uniform(rng)),
+                        Dense(ns, 128, relu; init=glorot_uniform(rng)),
+                        Dense(128, 128, relu; init=glorot_uniform(rng)),
+                        Dense(128, na; init=glorot_uniform(rng)),
                     ) |> cpu,
                     optimizer=ADAM(),
                 ),
@@ -64,16 +64,16 @@ function RLCore.Experiment(
         total_reward_per_episode,
         time_per_step,
         DoEveryNStep() do t, agent, env
-            with_logger(lg) do
-                @info "training" loss = agent.policy.learner.loss
-            end
-        end,
+        with_logger(lg) do
+            @info "training" loss = agent.policy.learner.loss
+        end
+    end,
         DoEveryNEpisode() do t, agent, env
-            with_logger(lg) do
-                @info "training" reward = total_reward_per_episode.rewards[end] log_step_increment =
+        with_logger(lg) do
+            @info "training" reward = total_reward_per_episode.rewards[end] log_step_increment =
                     0
-            end
-        end,
+        end
+    end,
     )
 
     description = """

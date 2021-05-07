@@ -3,57 +3,57 @@ function RLCore.Experiment(
     ::Val{:MAC},
     ::Val{:CartPole},
     ::Nothing;
-    save_dir = nothing,
-    seed = 123,
+    save_dir=nothing,
+    seed=123,
 )
     if isnothing(save_dir)
         t = Dates.format(now(), "yyyy_mm_dd_HH_MM_SS")
         save_dir = joinpath(pwd(), "checkpoints", "JuliaRL_MAC_CartPole_$(t)")
     end
 
-    lg = TBLogger(joinpath(save_dir, "tb_log"), min_level = Logging.Info)
+    lg = TBLogger(joinpath(save_dir, "tb_log"), min_level=Logging.Info)
     rng = MersenneTwister(seed)
     N_ENV = 16
     UPDATE_FREQ = 20
     env = MultiThreadEnv([
-        CartPoleEnv(; T = Float32, rng = MersenneTwister(hash(seed + i))) for i in 1:N_ENV
+        CartPoleEnv(; T=Float32, rng=MersenneTwister(hash(seed + i))) for i in 1:N_ENV
     ])
     ns, na = length(state(env[1])), length(action_space(env[1]))
-    RLBase.reset!(env, is_force = true)
+    RLBase.reset!(env, is_force=true)
 
     agent = Agent(
-        policy = QBasedPolicy(
-            learner = MACLearner(
-                approximator = ActorCritic(
-                    actor = NeuralNetworkApproximator(
-                        model = Chain(
-                            Dense(ns, 30, relu; initW = glorot_uniform(rng)),
-                            Dense(30, 30, relu; initW = glorot_uniform(rng)),
-                            Dense(30, na; initW = glorot_uniform(rng)),
+        policy=QBasedPolicy(
+            learner=MACLearner(
+                approximator=ActorCritic(
+                    actor=NeuralNetworkApproximator(
+                        model=Chain(
+                            Dense(ns, 30, relu; init=glorot_uniform(rng)),
+                            Dense(30, 30, relu; init=glorot_uniform(rng)),
+                            Dense(30, na; init=glorot_uniform(rng)),
                         ),
-                        optimizer = ADAM(1e-2),
+                        optimizer=ADAM(1e-2),
                     ),
-                    critic = NeuralNetworkApproximator(
-                        model = Chain(
-                            Dense(ns, 30, relu; initW = glorot_uniform(rng)),
-                            Dense(30, 30, relu; initW = glorot_uniform(rng)),
-                            Dense(30, na; initW = glorot_uniform(rng)),
+                    critic=NeuralNetworkApproximator(
+                        model=Chain(
+                            Dense(ns, 30, relu; init=glorot_uniform(rng)),
+                            Dense(30, 30, relu; init=glorot_uniform(rng)),
+                            Dense(30, na; init=glorot_uniform(rng)),
                         ),
-                        optimizer = ADAM(3e-3),
+                        optimizer=ADAM(3e-3),
                     ),
                 ) |> cpu,
-                γ = 0.99f0,
-                bootstrap = true,
-                update_freq = UPDATE_FREQ,
+                γ=0.99f0,
+                bootstrap=true,
+                update_freq=UPDATE_FREQ,
             ),
-            explorer = BatchExplorer(GumbelSoftmaxExplorer()),#= seed = nothing =#
+            explorer=BatchExplorer(GumbelSoftmaxExplorer()),#= seed = nothing =#
         ),
-        trajectory = CircularArraySARTTrajectory(;
-            capacity = UPDATE_FREQ,
-            state = Matrix{Float32} => (ns, N_ENV),
-            action = Vector{Int} => (N_ENV,),
-            reward = Vector{Float32} => (N_ENV,),
-            terminal = Vector{Bool} => (N_ENV,),
+        trajectory=CircularArraySARTTrajectory(;
+            capacity=UPDATE_FREQ,
+            state=Matrix{Float32} => (ns, N_ENV),
+            action=Vector{Int} => (N_ENV,),
+            reward=Vector{Float32} => (N_ENV,),
+            terminal=Vector{Bool} => (N_ENV,),
         ),
     )
 
@@ -64,21 +64,21 @@ function RLCore.Experiment(
         total_reward_per_episode,
         time_per_step,
         DoEveryNStep() do t, agent, env
-            with_logger(lg) do
-                @info(
+        with_logger(lg) do
+            @info(
                     "training",
                     actor_loss = agent.policy.learner.actor_loss,
                     critic_loss = agent.policy.learner.critic_loss,
                 )
-                for i in 1:length(env)
-                    if is_terminated(env[i])
-                        @info "training" reward = total_reward_per_episode.rewards[i][end] log_step_increment =
+            for i in 1:length(env)
+                if is_terminated(env[i])
+                    @info "training" reward = total_reward_per_episode.rewards[i][end] log_step_increment =
                             0
-                        break
-                    end
+                    break
                 end
             end
-        end,
+        end
+    end,
     )
     Experiment(agent, env, stop_condition, hook, "# MAC with CartPole")
 end
